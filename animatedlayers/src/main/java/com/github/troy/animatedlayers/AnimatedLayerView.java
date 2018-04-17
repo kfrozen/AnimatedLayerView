@@ -322,7 +322,6 @@ public class AnimatedLayerView extends View {
                 if (info.animationType != TRANSLATE_UP && info.animationType != TRANSLATE_DOWN) {
                     info.targetRect.top = heightOffset - info.marginBottom;
                     info.targetRect.bottom = vHeight - info.marginBottom;
-                    info.matrix.postTranslate(0, info.targetRect.top);
                 }
                 info.matrix.postTranslate(0, heightOffset - info.marginBottom);
             }
