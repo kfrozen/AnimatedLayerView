@@ -6,8 +6,8 @@ import android.support.annotation.DrawableRes;
 import android.support.annotation.FloatRange;
 import android.support.annotation.IntRange;
 
-import static com.github.troy.animatedlayers.AnimatedDrawableLayerView.FILL_PARENT;
-import static com.github.troy.animatedlayers.AnimatedDrawableLayerView.NO_SCALE;
+import static com.github.troy.animatedlayers.AnimatedLayerView.FILL_PARENT;
+import static com.github.troy.animatedlayers.AnimatedLayerView.NO_SCALE;
 
 /**
  * Created by troy on 2018/4/10.
@@ -34,12 +34,12 @@ public class LayerConfig {
         return builder.resId;
     }
 
-    @AnimatedDrawableLayerView.AnimationType
+    @AnimatedLayerView.AnimationType
     public int getAnimationType() {
         return builder.animationType;
     }
 
-    @AnimatedDrawableLayerView.LayerScaleType
+    @AnimatedLayerView.LayerScaleType
     public int getLayerScaleType() {
         return builder.layerScaleType;
     }
@@ -91,9 +91,9 @@ public class LayerConfig {
     public static class Builder {
         @DrawableRes
         int resId = -1;
-        @AnimatedDrawableLayerView.AnimationType
+        @AnimatedLayerView.AnimationType
         int animationType;
-        @AnimatedDrawableLayerView.LayerScaleType
+        @AnimatedLayerView.LayerScaleType
         int layerScaleType = NO_SCALE;
         int layerGravity = FILL_PARENT;
         int marginStart = 0;
@@ -107,7 +107,7 @@ public class LayerConfig {
         int repeatCount = ValueAnimator.INFINITE;
         TimeInterpolator interpolator = null;
 
-        public Builder(@DrawableRes int resId, @AnimatedDrawableLayerView.AnimationType int animationType) {
+        public Builder(@DrawableRes int resId, @AnimatedLayerView.AnimationType int animationType) {
             this.resId = resId;
             this.animationType = animationType;
         }
@@ -127,7 +127,7 @@ public class LayerConfig {
             return this;
         }
 
-        public Builder layerScaleType(@AnimatedDrawableLayerView.LayerScaleType int layerScaleType) {
+        public Builder layerScaleType(@AnimatedLayerView.LayerScaleType int layerScaleType) {
             this.layerScaleType = layerScaleType;
             return this;
         }

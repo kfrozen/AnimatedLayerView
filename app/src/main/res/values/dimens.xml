@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="soccer_translate_interval">75dp</dimen>
+</resources>

@@ -14,9 +14,7 @@ import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Build;
 import android.support.annotation.DrawableRes;
-import android.support.annotation.FloatRange;
 import android.support.annotation.IntDef;
-import android.support.annotation.IntRange;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
@@ -30,7 +28,7 @@ import java.util.ArrayList;
  * Created by troy on 2018/4/10.
  */
 
-public class AnimatedDrawableLayerView extends View {
+public class AnimatedLayerView extends View {
     /*****Animation Type*****/
     public static final int NO_ANIMATION = 0;
     public static final int TRANSLATE_START = 1;
@@ -78,23 +76,23 @@ public class AnimatedDrawableLayerView extends View {
     private Paint paint;
     private ArrayList<Layer> layerInfoList = new ArrayList<>();
 
-    public AnimatedDrawableLayerView(Context context) {
+    public AnimatedLayerView(Context context) {
         super(context);
         init();
     }
 
-    public AnimatedDrawableLayerView(Context context, @Nullable AttributeSet attrs) {
+    public AnimatedLayerView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         init();
     }
 
-    public AnimatedDrawableLayerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+    public AnimatedLayerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public AnimatedDrawableLayerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
+    public AnimatedLayerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
         init();
     }
@@ -205,8 +203,8 @@ public class AnimatedDrawableLayerView extends View {
                     continue;
                 }
                 paint.setShader(info.layerShader);
-                if (info.animationType == AnimatedDrawableLayerView.ROTATE_CLOCKWISE
-                        || info.animationType == AnimatedDrawableLayerView.ROTATE_ANTICLOCKWISE) {
+                if (info.animationType == AnimatedLayerView.ROTATE_CLOCKWISE
+                        || info.animationType == AnimatedLayerView.ROTATE_ANTICLOCKWISE) {
                     canvas.drawCircle(info.targetRect.centerX(), info.targetRect.centerY(),
                             Math.min(info.targetRect.width(), info.targetRect.height())/2, paint);
                 } else {
@@ -281,14 +279,14 @@ public class AnimatedDrawableLayerView extends View {
                 float actualScaleX = Math.min(1, scaleX);
                 float actualScaleY = Math.min(1, scaleY);
                 info.matrix.setScale(actualScaleX, actualScaleY);
-                info.matrix.setTranslate(widthOffset*actualScaleX, heightOffset*actualScaleY);
+                info.matrix.postTranslate(widthOffset*actualScaleX, heightOffset*actualScaleY);
             } else {
                 float actualScaleX = Math.min(1, scaleX);
                 float actualScaleY = Math.min(1, scaleY);
                 float actualScale = info.layerScaleType == CENTER_INSIDE ?
                         Math.min(actualScaleX, actualScaleY) : Math.max(actualScaleX, actualScaleY);
                 info.matrix.setScale(actualScale, actualScale);
-                info.matrix.setTranslate(widthOffset*actualScale, heightOffset*actualScale);
+                info.matrix.postTranslate(widthOffset*actualScale, heightOffset*actualScale);
             }
         } else if (info.layerGravity == FILL_PARENT){
             if(info.layerScaleType != NO_SCALE) {
@@ -303,33 +301,45 @@ public class AnimatedDrawableLayerView extends View {
                 }
             }
         } else {
+            info.matrix.setTranslate(0, 0);
             if ((info.layerGravity & CENTER_HORIZONTAL) == CENTER_HORIZONTAL) {
                 int widthOffset = vWidth - info.drawableWidth > 0 ? (vWidth - info.drawableWidth)/2 : 0;
                 info.targetRect.top = info.marginTop;
-                info.matrix.setTranslate(widthOffset, 0);
+                info.matrix.postTranslate(widthOffset, 0);
             } else if ((info.layerGravity & CENTER_VERTICAL) == CENTER_VERTICAL) {
                 int heightOffset = vHeight - info.drawableHeight > 0 ? (vHeight - info.drawableHeight)/2 : 0;
                 info.targetRect.left = info.marginStart;
-                info.matrix.setTranslate(0, heightOffset);
+                info.matrix.postTranslate(0, heightOffset);
             }
             if ((info.layerGravity & ALIGN_TOP) == ALIGN_TOP) {
-                info.targetRect.top = info.marginTop;
-                info.targetRect.bottom = Math.min(info.drawableHeight + info.marginTop, vHeight);
+                if (info.animationType != TRANSLATE_UP && info.animationType != TRANSLATE_DOWN) {
+                    info.targetRect.top = info.marginTop;
+                    info.targetRect.bottom = Math.min(info.drawableHeight + info.marginTop, vHeight);
+                }
+                info.matrix.postTranslate(0, info.marginTop);
             } else if ((info.layerGravity & ALIGN_BOTTOM) == ALIGN_BOTTOM) {
                 int heightOffset = vHeight - info.drawableHeight > 0 ? vHeight - info.drawableHeight : 0;
-                info.targetRect.top = heightOffset - info.marginBottom;
-                info.targetRect.bottom = vHeight - info.marginBottom;
+                if (info.animationType != TRANSLATE_UP && info.animationType != TRANSLATE_DOWN) {
+                    info.targetRect.top = heightOffset - info.marginBottom;
+                    info.targetRect.bottom = vHeight - info.marginBottom;
+                    info.matrix.postTranslate(0, info.targetRect.top);
+                }
+                info.matrix.postTranslate(0, heightOffset - info.marginBottom);
             }
             if ((info.layerGravity & ALIGN_START) == ALIGN_START) {
-                info.targetRect.left = info.marginStart;
-                info.targetRect.right = Math.min(info.drawableWidth + info.marginStart, vWidth);
+                if (info.animationType != TRANSLATE_START && info.animationType != TRANSLATE_END) {
+                    info.targetRect.left = info.marginStart;
+                    info.targetRect.right = Math.min(info.drawableWidth + info.marginStart, vWidth);
+                }
+                info.matrix.postTranslate(info.marginStart, 0);
             } else if ((info.layerGravity & ALIGN_END) == ALIGN_END) {
                 int widthOffset = vWidth - info.drawableWidth > 0 ? vWidth - info.drawableWidth : 0;
-                info.targetRect.left = widthOffset - info.marginEnd;
-                info.targetRect.right = vWidth - info.marginEnd;
+                if (info.animationType != TRANSLATE_START && info.animationType != TRANSLATE_END) {
+                    info.targetRect.left = widthOffset - info.marginEnd;
+                    info.targetRect.right = vWidth - info.marginEnd;
+                }
+                info.matrix.postTranslate(widthOffset - info.marginEnd, 0);
             }
-
-            info.matrix.postTranslate(info.targetRect.left, info.targetRect.top);
         }
         info.layerShader.setLocalMatrix(info.matrix);
         //Config Animator
