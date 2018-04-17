@@ -12,6 +12,7 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.ShapeDrawable;
 import android.os.Build;
 import android.support.annotation.DrawableRes;
 import android.support.annotation.IntDef;
@@ -37,7 +38,7 @@ public class AnimatedLayerView extends View {
     public static final int TRANSLATE_DOWN = 4;
     public static final int ROTATE_CLOCKWISE = 5;
     public static final int ROTATE_ANTICLOCKWISE = 6;
-    public static final int SCALE = 7;
+    public static final int SCALE = 7; //Type of SCALE only supports repeatMode == REVERSE
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({NO_ANIMATION, TRANSLATE_START, TRANSLATE_END, TRANSLATE_UP, TRANSLATE_DOWN, ROTATE_CLOCKWISE, ROTATE_ANTICLOCKWISE, SCALE})
@@ -202,6 +203,7 @@ public class AnimatedLayerView extends View {
                 if (info == null || !info.configured) {
                     continue;
                 }
+                info.layerShader.setLocalMatrix(info.getMatrix());
                 paint.setShader(info.layerShader);
                 if (info.animationType == AnimatedLayerView.ROTATE_CLOCKWISE
                         || info.animationType == AnimatedLayerView.ROTATE_ANTICLOCKWISE) {
@@ -250,97 +252,98 @@ public class AnimatedLayerView extends View {
         }
     }
 
-    private void configLayerInfo(@NonNull final Layer info) {
-        //Config bitmap shader
-        if(info.layerShader == null) {
-            Bitmap bitmap = ((BitmapDrawable)getResources().getDrawable(info.resId)).getBitmap();
-            info.drawableWidth = bitmap.getWidth();
-            info.drawableHeight = bitmap.getHeight();
-            Shader.TileMode x = (info.animationType == TRANSLATE_START || info.animationType == TRANSLATE_END)
-                    ? ((info.drawableWidth < vWidth) ? Shader.TileMode.CLAMP : Shader.TileMode.REPEAT) : Shader.TileMode.CLAMP;
-            Shader.TileMode y = (info.animationType == TRANSLATE_UP || info.animationType == TRANSLATE_DOWN)
-                    ? ((info.drawableHeight < vHeight) ? Shader.TileMode.CLAMP : Shader.TileMode.REPEAT) : Shader.TileMode.CLAMP;
-            info.layerShader = new BitmapShader(bitmap, x, y);
-        }
+    private void layoutLayer(final Layer info, float extraSpaceXPercentageForScale, float extraSpaceYPercentageForScale) {
         //Config Matrix and target Rect to draw
         info.targetRect = new Rect(0, 0, vWidth, vHeight);
         if (info.layerGravity == CENTER) {
-            int widthOffset = vWidth - info.drawableWidth > 0 ? (vWidth - info.drawableWidth)/2 : 0;
-            int heightOffset = vHeight - info.drawableHeight > 0 ? (vHeight - info.drawableHeight)/2 : 0;
+            int widthOffset = (vWidth - info.drawableWidth)/2;
+            int heightOffset = (vHeight - info.drawableHeight)/2;
             if (info.animationType == ROTATE_CLOCKWISE || info.animationType == ROTATE_ANTICLOCKWISE) {
-                info.targetRect = new Rect(widthOffset, heightOffset, vWidth - widthOffset, vHeight - heightOffset);
+                int rectX = vWidth - info.drawableWidth > 0 ? (vWidth - info.drawableWidth)/2 : 0;
+                int rectY = vHeight - info.drawableHeight > 0 ? (vHeight - info.drawableHeight)/2 : 0;
+                info.targetRect = new Rect(rectX, rectY, vWidth - rectX, vHeight - rectY);
             }
             float scaleX = vWidth / (info.drawableWidth*1f);
             float scaleY = vHeight / (info.drawableHeight*1f);
             //Only scale down, no scale up for gravity == CENTER
             if (info.layerScaleType == NO_SCALE) {
-                info.matrix.setTranslate(widthOffset, heightOffset);
+                info.translateX = widthOffset;
+                info.translateY = heightOffset;
             } else if (info.layerScaleType == FITXY) {
-                float actualScaleX = Math.min(1, scaleX);
-                float actualScaleY = Math.min(1, scaleY);
-                info.matrix.setScale(actualScaleX, actualScaleY);
-                info.matrix.postTranslate(widthOffset*actualScaleX, heightOffset*actualScaleY);
+                info.scaleX = Math.min(1, scaleX);
+                info.scaleY = Math.min(1, scaleY);
+                info.translateX = widthOffset;
+                info.translateY = heightOffset;
             } else {
                 float actualScaleX = Math.min(1, scaleX);
                 float actualScaleY = Math.min(1, scaleY);
                 float actualScale = info.layerScaleType == CENTER_INSIDE ?
                         Math.min(actualScaleX, actualScaleY) : Math.max(actualScaleX, actualScaleY);
-                info.matrix.setScale(actualScale, actualScale);
-                info.matrix.postTranslate(widthOffset*actualScale, heightOffset*actualScale);
+                info.scaleX = actualScale;
+                info.scaleY = actualScale;
+                info.translateX = widthOffset;
+                info.translateY = heightOffset;
             }
         } else if (info.layerGravity == FILL_PARENT){
             if(info.layerScaleType != NO_SCALE) {
                 float scaleX = vWidth / (info.drawableWidth*1f);
                 float scaleY = vHeight / (info.drawableHeight*1f);
                 if (info.layerScaleType == FITXY) {
-                    info.matrix.setScale(scaleX, scaleY);
+                    info.scaleX = scaleX;
+                    info.scaleY = scaleY;
                 } else {
                     float actualScale = info.layerScaleType == CENTER_INSIDE ?
                             Math.min(scaleX, scaleY) : Math.max(scaleX, scaleY);
-                    info.matrix.setScale(actualScale, actualScale);
+                    info.scaleX = actualScale;
+                    info.scaleY = actualScale;
                 }
             }
         } else {
-            info.matrix.setTranslate(0, 0);
             if ((info.layerGravity & CENTER_HORIZONTAL) == CENTER_HORIZONTAL) {
                 int widthOffset = vWidth - info.drawableWidth > 0 ? (vWidth - info.drawableWidth)/2 : 0;
                 info.targetRect.top = info.marginTop;
-                info.matrix.postTranslate(widthOffset, 0);
+                info.translateX += widthOffset;
             } else if ((info.layerGravity & CENTER_VERTICAL) == CENTER_VERTICAL) {
                 int heightOffset = vHeight - info.drawableHeight > 0 ? (vHeight - info.drawableHeight)/2 : 0;
                 info.targetRect.left = info.marginStart;
-                info.matrix.postTranslate(0, heightOffset);
+                info.translateY += heightOffset;
             }
             if ((info.layerGravity & ALIGN_TOP) == ALIGN_TOP) {
                 if (info.animationType != TRANSLATE_UP && info.animationType != TRANSLATE_DOWN) {
                     info.targetRect.top = info.marginTop;
-                    info.targetRect.bottom = Math.min(info.drawableHeight + info.marginTop, vHeight);
+                    info.targetRect.bottom = (int) Math.min(info.drawableHeight*extraSpaceYPercentageForScale + info.marginTop, vHeight);
                 }
-                info.matrix.postTranslate(0, info.marginTop);
+                info.translateY += info.marginTop;
             } else if ((info.layerGravity & ALIGN_BOTTOM) == ALIGN_BOTTOM) {
-                int heightOffset = vHeight - info.drawableHeight > 0 ? vHeight - info.drawableHeight : 0;
+                int rectOffset = vHeight - info.drawableHeight*extraSpaceYPercentageForScale > 0 ?
+                        (int) (vHeight - info.drawableHeight*extraSpaceYPercentageForScale) : 0;
                 if (info.animationType != TRANSLATE_UP && info.animationType != TRANSLATE_DOWN) {
-                    info.targetRect.top = heightOffset - info.marginBottom;
+                    info.targetRect.top = rectOffset - info.marginBottom;
                     info.targetRect.bottom = vHeight - info.marginBottom;
                 }
-                info.matrix.postTranslate(0, heightOffset - info.marginBottom);
+                int transOffset = vHeight - info.drawableHeight > 0 ? vHeight - info.drawableHeight : 0;
+                info.translateY += transOffset - info.marginBottom;
             }
             if ((info.layerGravity & ALIGN_START) == ALIGN_START) {
                 if (info.animationType != TRANSLATE_START && info.animationType != TRANSLATE_END) {
                     info.targetRect.left = info.marginStart;
-                    info.targetRect.right = Math.min(info.drawableWidth + info.marginStart, vWidth);
+                    info.targetRect.right = (int) Math.min(info.drawableWidth*extraSpaceXPercentageForScale + info.marginStart, vWidth);
                 }
-                info.matrix.postTranslate(info.marginStart, 0);
+                info.translateX += info.marginStart;
             } else if ((info.layerGravity & ALIGN_END) == ALIGN_END) {
-                int widthOffset = vWidth - info.drawableWidth > 0 ? vWidth - info.drawableWidth : 0;
+                int rectOffset = vWidth - info.drawableWidth*extraSpaceXPercentageForScale > 0 ?
+                        (int) (vWidth - info.drawableWidth*extraSpaceXPercentageForScale) : 0;
                 if (info.animationType != TRANSLATE_START && info.animationType != TRANSLATE_END) {
-                    info.targetRect.left = widthOffset - info.marginEnd;
+                    info.targetRect.left = rectOffset - info.marginEnd;
                     info.targetRect.right = vWidth - info.marginEnd;
                 }
-                info.matrix.postTranslate(widthOffset - info.marginEnd, 0);
+                int transOffset = vWidth - info.drawableWidth > 0 ? vWidth - info.drawableWidth : 0;
+                info.translateX += transOffset - info.marginEnd;
             }
         }
-        info.layerShader.setLocalMatrix(info.matrix);
+    }
+
+    private void configLayerAnimator(final Layer info) {
         //Config Animator
         if (info.animationInterval == LayerConfig.ANIMATION_INTERVAL_AUTO && info.animationType != NO_ANIMATION) {
             if (info.animationType == TRANSLATE_START || info.animationType == TRANSLATE_END) {
@@ -369,20 +372,6 @@ public class AnimatedLayerView extends View {
                 info.valueAnimator.setInterpolator(info.interpolator);
             }
         }
-        //Set initial value
-        if (info.animationType == ROTATE_CLOCKWISE || info.animationType == ROTATE_ANTICLOCKWISE) {
-            if (info.fromValue != 0) {
-                info.matrix.postRotate(info.fromValue, info.targetRect.centerX(), info.targetRect.centerY());
-            }
-        } else if (info.animationType == TRANSLATE_START || info.animationType == TRANSLATE_END) {
-            if (info.fromValue != 0) {
-                info.matrix.postTranslate(info.fromValue, 0);
-            }
-        } else if (info.animationType == TRANSLATE_UP || info.animationType == TRANSLATE_DOWN) {
-            if (info.fromValue != 0) {
-                info.matrix.postTranslate(0, info.fromValue);
-            }
-        }
 
         if (info.valueAnimator != null) {
             info.valueAnimator.cancel();
@@ -402,32 +391,83 @@ public class AnimatedLayerView extends View {
                             }
                         } else {
                             change = (fraction - lastFraction) * info.animationInterval;
+                            System.out.println(animation.getAnimatedValue());
+                            if (info.animationType == SCALE) {
+                                if (fraction < lastFraction) {
+                                    info.scaleX = info.toScaleX + info.baseScaleX * ((Float) animation.getAnimatedValue() - (info.fromValue + info.animationInterval));
+                                    info.scaleY = info.toScaleY + info.baseScaleY * ((Float) animation.getAnimatedValue() - (info.fromValue + info.animationInterval));
+                                } else {
+                                    info.scaleX = info.fromScaleX + info.baseScaleX * ((Float) animation.getAnimatedValue() - info.fromValue);
+                                    info.scaleY = info.fromScaleY + info.baseScaleY * ((Float) animation.getAnimatedValue() - info.fromValue);
+                                }
+                            }
                         }
                         lastFraction = fraction;
 
                         if (info.animationType == TRANSLATE_START) {
-                            info.matrix.postTranslate(-change, 0);
+                            info.translateX -= change;
                         } else if (info.animationType == TRANSLATE_END) {
-                            info.matrix.postTranslate(change, 0);
+                            info.translateX += change;
                         } else if (info.animationType == TRANSLATE_UP) {
-                            info.matrix.postTranslate(0, -change);
+                            info.translateY -= change;
                         } else if (info.animationType == TRANSLATE_DOWN) {
-                            info.matrix.postTranslate(0, change);
+                            info.translateY += change;
                         } else if (info.animationType == ROTATE_CLOCKWISE) {
-                            info.matrix.postRotate(change, info.targetRect.centerX(), info.targetRect.centerY());
+                            info.rotateDegree += change;
                         } else if (info.animationType == ROTATE_ANTICLOCKWISE) {
-                            info.matrix.postRotate(-change, info.targetRect.centerX(), info.targetRect.centerY());
-                        } else if (info.animationType == SCALE) {
-                            info.matrix.setScale(change, change);
+                            info.rotateDegree -= change;
                         }
 
-                        info.layerShader.setLocalMatrix(info.matrix);
                         invalidate();
                     }
                 });
                 info.valueAnimator.start();
             }
         }
+    }
+
+    private void configLayerInfo(@NonNull final Layer info) {
+        //Config bitmap shader
+        if(info.layerShader == null) {
+            Bitmap bitmap = ((BitmapDrawable)getResources().getDrawable(info.resId)).getBitmap();
+            info.drawableWidth = bitmap.getWidth();
+            info.drawableHeight = bitmap.getHeight();
+            Shader.TileMode x = (info.animationType == TRANSLATE_START || info.animationType == TRANSLATE_END)
+                    ? ((info.drawableWidth < vWidth) ? Shader.TileMode.CLAMP : Shader.TileMode.REPEAT) : Shader.TileMode.CLAMP;
+            Shader.TileMode y = (info.animationType == TRANSLATE_UP || info.animationType == TRANSLATE_DOWN)
+                    ? ((info.drawableHeight < vHeight) ? Shader.TileMode.CLAMP : Shader.TileMode.REPEAT) : Shader.TileMode.CLAMP;
+            info.layerShader = new BitmapShader(bitmap, x, y);
+        }
+        //Set initial value
+        float extraSpaceXPercentageForScale = 1f;
+        float extraSpaceYPercentageForScale = 1f;
+        if (info.animationType == ROTATE_CLOCKWISE || info.animationType == ROTATE_ANTICLOCKWISE) {
+            if (info.fromValue != 0) {
+                info.rotateDegree += info.fromValue;
+            }
+        } else if (info.animationType == TRANSLATE_START || info.animationType == TRANSLATE_END) {
+            if (info.fromValue != 0) {
+                info.translateX += info.fromValue;
+            }
+        } else if (info.animationType == TRANSLATE_UP || info.animationType == TRANSLATE_DOWN) {
+            if (info.fromValue != 0) {
+                info.translateY += info.fromValue;
+            }
+        } else if (info.animationType == SCALE) {
+            info.baseScaleX = info.scaleX;
+            info.baseScaleY = info.scaleY;
+            info.fromScaleX = info.scaleX * info.fromValue;
+            info.fromScaleY = info.scaleY * info.fromValue;
+            info.toScaleX = info.scaleX * (info.fromValue + info.animationInterval);
+            info.toScaleY = info.scaleY * (info.fromValue + info.animationInterval);
+            extraSpaceXPercentageForScale = Math.max(1, Math.max(info.fromScaleX, info.toScaleX));
+            extraSpaceYPercentageForScale = Math.max(1, Math.max(info.fromScaleY, info.toScaleY));
+        }
+
+        layoutLayer(info, extraSpaceXPercentageForScale, extraSpaceYPercentageForScale);
+
+        configLayerAnimator(info);
+
         info.configured = true;
     }
 
@@ -463,7 +503,6 @@ public class AnimatedLayerView extends View {
         BitmapShader layerShader;
         int drawableWidth;
         int drawableHeight;
-        Matrix matrix;
         Rect targetRect;
         ValueAnimator valueAnimator;
         float animationInterval;
@@ -473,6 +512,22 @@ public class AnimatedLayerView extends View {
         int repeatCount = ValueAnimator.INFINITE;
         TimeInterpolator interpolator = null;
         boolean configured = false;
+
+        Matrix matrix;
+        float translateX = 0f;
+        float translateY = 0f;
+        float rotateDegree = 0f;
+        float scaleX = 1f;
+        float scaleY = 1f;
+        float baseScaleX = 1f;
+        float baseScaleY = 1f;
+        float fromScaleX = 1f;
+        float fromScaleY = 1f;
+        float toScaleX = 1f;
+        float toScaleY = 1f;
+        float scalePivotX = -1f;
+        float scalePivotY = -1f;
+
 
         public static Layer generate(LayerConfig config) {
             Layer info = new Layer();
@@ -484,6 +539,8 @@ public class AnimatedLayerView extends View {
             info.marginTop = config.getMarginTop();
             info.marginEnd = config.getMarginEnd();
             info.marginBottom = config.getMarginBottom();
+            info.scalePivotX = config.getScalePivotX();
+            info.scalePivotY = config.getScalePivotY();
             info.matrix = new Matrix();
             if (info.animationType != NO_ANIMATION) {
                 if (config.getAnimationInterval() != LayerConfig.ANIMATION_INTERVAL_AUTO) {
@@ -512,6 +569,16 @@ public class AnimatedLayerView extends View {
             matrix = null;
             layerShader = null;
             configured = false;
+        }
+
+        private Matrix getMatrix() {
+            matrix.reset();
+            matrix.setTranslate(translateX, translateY);
+            float pivotX = scalePivotX == -1 ? targetRect.centerX() : targetRect.left + targetRect.width()*scalePivotX;
+            float pivotY = scalePivotY == -1 ? targetRect.centerY() : targetRect.top + targetRect.height()*scalePivotY;
+            matrix.postScale(scaleX, scaleY, pivotX, pivotY);
+            matrix.postRotate(rotateDegree, targetRect.centerX(), targetRect.centerY());
+            return matrix;
         }
 
         /**

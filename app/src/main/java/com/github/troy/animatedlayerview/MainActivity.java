@@ -40,8 +40,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void initAnimatedLogo() {
         ArrayList<LayerConfig> layerConfigs = new ArrayList<>();
-        layerConfigs.add((new LayerConfig.Builder(R.drawable.bvb_logo, AnimatedLayerView.ROTATE_CLOCKWISE))
+        layerConfigs.add((new LayerConfig.Builder(R.drawable.bvb_logo, AnimatedLayerView.ROTATE_ANTICLOCKWISE))
                 .layerGravity(AnimatedLayerView.CENTER).layerScaleType(AnimatedLayerView.CENTER_INSIDE).duration(3000).build());
+//        layerConfigs.add((new LayerConfig.Builder(R.drawable.soccer, AnimatedLayerView.SCALE))
+//                .duration(2000).fromValue(1).animationInterval(0.5f).scalePivot(1, 1)
+//                .layerGravity(AnimatedLayerView.ALIGN_BOTTOM | AnimatedLayerView.ALIGN_END)
+//                .margin(0, 0, 0, 0).repeatMode(ValueAnimator.REVERSE).build());
+//        layerConfigs.add((new LayerConfig.Builder(R.drawable.soccer, AnimatedLayerView.SCALE))
+//                .duration(2000).fromValue(1).animationInterval(0.5f).scalePivot(0, 0)
+//                .layerGravity(AnimatedLayerView.ALIGN_START | AnimatedLayerView.ALIGN_TOP)
+//                .margin(0, 0, 0, 0).repeatMode(ValueAnimator.REVERSE).build());
         layerConfigs.add((new LayerConfig.Builder(R.drawable.soccer, AnimatedLayerView.TRANSLATE_UP))
                 .duration(1000).animationInterval(getResources().getDimension(R.dimen.soccer_translate_interval))
                 .layerGravity(AnimatedLayerView.ALIGN_BOTTOM | AnimatedLayerView.CENTER_HORIZONTAL)

@@ -68,6 +68,14 @@ public class LayerConfig {
         return builder.fromValue;
     }
 
+    public float getScalePivotX() {
+        return builder.scalePivotX;
+    }
+
+    public float getScalePivotY() {
+        return builder.scalePivotY;
+    }
+
     public float getAnimationInterval() {
         return builder.animationInterval;
     }
@@ -77,7 +85,7 @@ public class LayerConfig {
     }
 
     public int getRepeatMode() {
-        return builder.repeatMode;
+        return builder.animationType == AnimatedLayerView.SCALE ? ValueAnimator.REVERSE : builder.repeatMode;
     }
 
     public int getRepeatCount() {
@@ -96,6 +104,8 @@ public class LayerConfig {
         @AnimatedLayerView.LayerScaleType
         int layerScaleType = NO_SCALE;
         int layerGravity = FILL_PARENT;
+        float scalePivotX = -1;
+        float scalePivotY = -1;
         int marginStart = 0;
         int marginTop = 0;
         int marginEnd = 0;
@@ -117,7 +127,7 @@ public class LayerConfig {
             return this;
         }
 
-        public Builder animationInterval(@FloatRange(from = 1f) float animationInterval) {
+        public Builder animationInterval(@FloatRange(from = 0f) float animationInterval) {
             this.animationInterval = animationInterval;
             return this;
         }
@@ -145,9 +155,7 @@ public class LayerConfig {
         }
 
         public Builder repeatCount(int repeatCount) {
-            if(repeatCount > 0) {
-                this.repeatCount = repeatCount;
-            }
+            this.repeatCount = repeatCount;
             return this;
         }
 
@@ -161,6 +169,12 @@ public class LayerConfig {
             this.marginTop = top;
             this.marginEnd = end;
             this.marginBottom = bottom;
+            return this;
+        }
+
+        public Builder scalePivot(@FloatRange(from = 0, to = 1) float x, @FloatRange(from = 0, to = 1) float y) {
+            this.scalePivotX = x;
+            this.scalePivotY = y;
             return this;
         }
 
